@@ -52,7 +52,7 @@
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <sonar.login>sqp_3bc59baab83f88b8f0fe731958806eb8a4feff97</sonar.login>
+        <sonar.token>sqp_3bc59baab83f88b8f0fe731958806eb8a4feff97</sonar.token>
 
 
     </properties>
