@@ -45,11 +45,11 @@ public class MyTelegramBot extends TelegramLongPollingBot {
             CallbackQuery callbackQuery = update.getCallbackQuery();
             String data = callbackQuery.getData();
             String chatId = String.valueOf(callbackQuery.getMessage().getChatId());
-            if (data.equals("en") || data.equals("uz")) {
+            if (data.equals("ru") || data.equals("uz")) {
                 User user = userRepository.findByChatId(chatId);
                 user.setLang(data);
                 userRepository.save(user);
-                sendMessage(chatId, messageSource.getMessage("send_photos", null, Locale.forLanguageTag(data)));
+                sendMessage(chatId, messageSource.getMessage("share_contact", null, Locale.forLanguageTag(data)));
             } else if (data.equals("users")) {
                 sendMessage(chatId, userRepository.countUsers() + " users in bot!");
 
@@ -332,7 +332,7 @@ public class MyTelegramBot extends TelegramLongPollingBot {
 
     @Override
     public String getBotUsername() {
-        return "https://t.me/photo_to_pdf_converter_bot";
+        return "https://t.me/bigbitebot";
     }
 
     @Override

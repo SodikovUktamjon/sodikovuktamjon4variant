@@ -1,7 +1,10 @@
 package com.example.util;
 
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -27,7 +30,7 @@ public class InlineKeyboardUtil {
         return button;
     }
     public static InlineKeyboardMarkup getInlineUserLanguages(){
-        InlineKeyboardButton inlineKeyboardButton=getButton("English\uD83C\uDDEC\uD83C\uDDE7","en");
+        InlineKeyboardButton inlineKeyboardButton=getButton("Русский\uD83C\uDDF7\uD83C\uDDFA","ru");
         InlineKeyboardButton inlineKeyboardButton1=getButton("Uzbek\uD83C\uDDFA\uD83C\uDDFF","uz");
         return new InlineKeyboardMarkup(Collections.singletonList(List.of(inlineKeyboardButton,inlineKeyboardButton1)));
     }
@@ -37,5 +40,20 @@ public class InlineKeyboardUtil {
         InlineKeyboardButton admins= getButton("Admins", "admins");
         return new InlineKeyboardMarkup(Collections.singletonList(List.of(users, messages,admins)));
     }
+
+public static ReplyKeyboardMarkup shareContact(){
+    ReplyKeyboardMarkup keyboardMarkup = new ReplyKeyboardMarkup();
+    keyboardMarkup.setResizeKeyboard(true);
+    keyboardMarkup.setOneTimeKeyboard(true);
+
+    KeyboardButton contactButton = new KeyboardButton();
+    contactButton.setText("📞 Share Contact");
+    contactButton.setRequestContact(true); // Request contact info
+
+    KeyboardRow row = new KeyboardRow();
+    row.add(contactButton);
+    keyboardMarkup.setKeyboard(Collections.singletonList(row));
+    return keyboardMarkup;
+}
 
 }

@@ -11,7 +11,7 @@ import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
 
 @Configuration
 public class BotConfig {
-    public static final String botToken="6443163586:AAE9BZT1nKzgzXHB2HKTRl38pU6evuiApL8";
+    public static final String botToken="7859642042:AAG7HKusE5F0M5gqh05w_W1qmtMx-X8_S5E";
 
     @Bean
     public MessageSource messageSource() {

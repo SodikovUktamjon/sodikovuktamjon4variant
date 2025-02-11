@@ -1,6 +1,14 @@
 server:
+  servlet:
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
   port: 8082
 spring:
+  messages:
+    basename: languages_ru.properties
+    encoding: UTF-8
   datasource:
     username: postgres
     password: 123
@@ -9,3 +17,4 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
