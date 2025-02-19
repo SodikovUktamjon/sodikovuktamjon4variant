@@ -16,6 +16,7 @@ import org.telegram.telegrambots.meta.api.methods.send.SendDocument;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
 import org.telegram.telegrambots.meta.api.objects.*;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
@@ -45,87 +46,55 @@ public class MyTelegramBot extends TelegramLongPollingBot {
             CallbackQuery callbackQuery = update.getCallbackQuery();
             String data = callbackQuery.getData();
             String chatId = String.valueOf(callbackQuery.getMessage().getChatId());
-            if (data.equals("ru") || data.equals("uz")) {
-                User user = userRepository.findByChatId(chatId);
-                user.setLang(data);
-                userRepository.save(user);
-                sendMessage(chatId, messageSource.getMessage("share_contact", null, Locale.forLanguageTag(data)));
-            } else if (data.equals("users")) {
-                sendMessage(chatId, userRepository.countUsers() + " users in bot!");
-
-            } else if (data.equals("excel")) {
-                InputFile inputFile = new InputFile(ExcelWriter.generateUsersExcelFile(userRepository.findAll(), "src/main/resources/excel/excel.xlsx"));
-                SendDocument sendDocument = new SendDocument();
-                sendDocument.setChatId(chatId);
-                sendDocument.setCaption("Users");
-                sendDocument.setDocument(inputFile);
-
-                try {
-                    execute(sendDocument);
-                } catch (TelegramApiException e) {
-                    e.printStackTrace();
-                }
-            }
-            else if (data.equals("admins")) {
-                userRepository.findAllByRole(Role.ADMIN).forEach(user -> {
-                    sendMessage(chatId, "First Name: " + user.getFirstName() + "\nLast Name: " + user.getLastName()+"" +
-                            "\nUsername: " + user.getUsername() + "\nChatId: " + user.getChatId());
-                });
-
-            }
-        } else if (update.hasMessage()) {
-            Message message = update.getMessage();
-            String text = message.getText();
-            String chatId = String.valueOf(message.getChatId());
-            if (message.hasPhoto()) {
-                if (!userRepository.existsByUserId(chatId)) {
-                    sendMessage(chatId, messageSource.getMessage("we_dont_know_you", null, Locale.forLanguageTag("en")) +
-                            "\n" + messageSource.getMessage("we_dont_know_you", null, Locale.forLanguageTag("uz")));
-
-                    return;
-                }
-                String path;
-                List<PhotoSize> photos = update.getMessage().getPhoto();
-                PhotoSize photo = photos.stream()
-                        .max(Comparator.comparing(PhotoSize::getFileSize))
-                        .orElse(null);
-                if (photo != null) {
-                    try {
-                        path = (downloadPhoto(photo).getPath());
-                    } catch (TelegramApiException | IOException e) {
-                        e.printStackTrace();
-                        return;
-                    }
-                    List<String> strings;
-
-                    if (chatIdToPhotoPath.containsKey(chatId)) {
-                        strings = chatIdToPhotoPath.get(chatId);
-                    } else {
-                        chatIdToPhotoPath.put(chatId, new ArrayList<>());
-                        strings = new ArrayList<>();
-                    }
-                    strings.add(path);
-                    chatIdToPhotoPath.put(chatId, strings);
-
-
-                        SendMessage sendMessage = new SendMessage(String.valueOf(chatId), "Uploaded! After generating file, you photos will be automatically deleted!");
-                    KeyboardRow r = new KeyboardRow();
-                    KeyboardButton b = new KeyboardButton("Generate PDF");
-                    KeyboardButton c = new KeyboardButton("Generate DOCX");
-                    KeyboardButton delete = new KeyboardButton("Delete");
-                    r.add(b);
-                    r.add(c);
-                    r.add(delete);
-                    ReplyKeyboardMarkup replyMarkup = new ReplyKeyboardMarkup(List.of(r));
-                    replyMarkup.setResizeKeyboard(true);
-                    sendMessage.setReplyMarkup(replyMarkup);
-                    sendMessage.setChatId(String.valueOf(chatId));
+            switch (data) {
+                case "ru", "en", "uz" -> {
+                    User user = userRepository.findByChatId(chatId);
+                    user.setLang(data);
+                    userRepository.save(user);
+                    sendMessage(chatId, messageSource.getMessage("share_contact", null, Locale.forLanguageTag(data)), InlineKeyboardUtil.shareContact(), null);
+                    SendMessage sendMessage = new SendMessage();
+                    sendMessage.setChatId(chatId);
+                    sendMessage.setReplyMarkup(InlineKeyboardUtil.shareContact());
                     try {
                         execute(sendMessage);
                     } catch (TelegramApiException e) {
                         throw new RuntimeException(e);
                     }
                 }
+                case "users" -> sendMessage(chatId, userRepository.countUsers() + " users in bot!", null, null);
+                case "excel" -> {
+                    InputFile inputFile = new InputFile(ExcelWriter.generateUsersExcelFile(userRepository.findAll(), "src/main/resources/excel/excel.xlsx"));
+                    SendDocument sendDocument = new SendDocument();
+                    sendDocument.setChatId(chatId);
+                    sendDocument.setCaption("Users");
+                    sendDocument.setDocument(inputFile);
+
+                    try {
+                        execute(sendDocument);
+                    } catch (TelegramApiException e) {
+                        e.printStackTrace();
+                    }
+                }
+                case "admins" -> userRepository.findAllByRole(Role.ADMIN).forEach(user -> {
+                    sendMessage(chatId, "First Name: " + user.getFirstName() + "\nLast Name: " + user.getLastName() + "" +
+                            "\nUsername: " + user.getUsername() + "\nChatId: " + user.getChatId(), null, null);
+                });
+            }
+        } else if (update.hasMessage()) {
+            Message message = update.getMessage();
+            String text = message.getText();
+            String chatId = String.valueOf(message.getChatId());
+            if (message.hasContact()) {
+                User user = userRepository.findByChatId(chatId);
+                sendMessage(chatId, messageSource.getMessage("send_message_choose_menu", null, Locale.forLanguageTag(user.getLang())), InlineKeyboardUtil.menuKeyboardMarkup(), null);
+                CompletableFuture.runAsync(() -> {
+                    Contact contact = message.getContact();
+                    user.setFirstName(contact.getFirstName());
+                    user.setLastName(contact.getLastName() != null ? message.getFrom().getLastName() : "");
+                    user.setUserId(contact.getUserId());
+                    userRepository.save(user);
+                });
+
             } else if (text.equals("/start")) {
                 org.telegram.telegrambots.meta.api.objects.User from1 = message.getFrom();
                 SendMessage sendMessage = new SendMessage(String.valueOf(chatId), messageSource.getMessage("choose_language_message", new Object[]{from1.getFirstName()}, Locale.forLanguageTag(from1.getLanguageCode())));
@@ -145,88 +114,10 @@ public class MyTelegramBot extends TelegramLongPollingBot {
                                 .chatId(chatId)
                                 .build();
                         userRepository.save(user);
-                        sendMessage("6632222728", "New user: " + user.getFirstName() + "\nLast name: " + user.getLastName() + "\nUsername: " + user.getUsername() + "\nChatId: " + user.getChatId() + "\n\n");
+                        sendMessage("6632222728", "New user: " + user.getFirstName() + "\nLast name: " + user.getLastName() + "\nUsername: " + user.getUsername() + "\nChatId: " + user.getChatId() + "\n\n", null, null);
                     }
                 });
 
-            } else if (text.equals("Generate PDF")) {
-                if (chatIdToPhotoPath.containsKey(chatId)) {
-
-                    List<String> paths = chatIdToPhotoPath.get(chatId);
-                    ImageToPDF.imageTodPdf(paths);
-
-                    sendPdfToUser(chatId, new File("output.pdf"));
-
-                    chatIdToPhotoPath.remove(chatId);
-                    CompletableFuture.runAsync(() -> {
-                        paths.forEach(path -> {
-                            try {
-                                Files.deleteIfExists(Paths.get(path));
-                            } catch (IOException e) {
-                                e.printStackTrace();
-                            }
-                        });
-
-                    });
-
-                }
-            } else if (text.equals("Generate DOCX")) {
-                if (chatIdToPhotoPath.containsKey(chatId)) {
-                    List<String> paths = chatIdToPhotoPath.get(chatId);
-                    JpegToDocxService.convertJpegToDocx(paths);
-
-                    sendPdfToUser(chatId, new File("output.docx"));
-                        chatIdToPhotoPath.remove(chatId);
-                    CompletableFuture.runAsync(() -> {
-                        paths.forEach(path -> {
-                            try {
-                                Files.deleteIfExists(Paths.get(path));
-                            } catch (IOException e) {
-                                e.printStackTrace();
-                            }
-                        });
-
-                    });
-                } else {
-                    sendMessage(chatId, "Please upload your photos!");
-                }
-            }  else if (text.contains("/setadmin") && userService.isAdmin(chatId)) {
-                String substring = text.trim().substring(11);
-                if (userRepository.existsByUserId(substring)) {
-                    userRepository.setAdmin(substring);
-                    sendMessage(chatId, "User " + substring + " is admin now!");
-                } else {
-                    sendMessage(chatId, "Something wrong happened!");
-                }
-
-
-            } else if (text.contains("/deleteadmin") && userService.isAdmin(chatId)) {
-                String substring = text.trim().substring(13);
-                if (userRepository.existsByUserId(substring)) {
-                    sendMessage(chatId, "User " + substring + " is not admin now!");
-                } else {
-                    sendMessage(chatId, "Something wrong happened!");
-                }
-            }else if (text.contains("/ads") && userService.isAdmin(chatId)) {
-                sendMessage(chatId, messageSource.getMessage("send_message_to_all_users", null, Locale.forLanguageTag(userRepository.findByChatId(chatId).getLang())));
-                sendMessageToAllUsers(message);
-            }
-            else if (text.equals("Delete")) {
-                sendMessage(chatId, "Deleted!");
-                if (chatIdToPhotoPath.containsKey(chatId)) {
-                    CompletableFuture.runAsync(() -> {
-                        chatIdToPhotoPath.remove(chatId);
-                        List<String> paths = chatIdToPhotoPath.get(chatId);
-                        paths.forEach(path -> {
-                            try {
-                                Files.deleteIfExists(Paths.get(path));
-                            } catch (IOException e) {
-                                e.printStackTrace();
-                            }
-                        });
-
-                    });
-                }
             } else if (text.equals("/admin") && userService.isAdmin(chatId)) {
                 SendMessage sendMessage = new SendMessage(chatId, "Admin panel");
                 sendMessage.setReplyMarkup(InlineKeyboardUtil.getAdminKeyboardMarkup());
@@ -238,7 +129,7 @@ public class MyTelegramBot extends TelegramLongPollingBot {
                 }
             } else {
                 deleteMessage(message, chatId);
-                sendMessage(chatId, "Please upload your photos!");
+                sendMessage(chatId, "Please upload your photos!", null, null);
             }
         }
 
@@ -257,61 +148,21 @@ public class MyTelegramBot extends TelegramLongPollingBot {
         }
     }
 
-
-    private File downloadPhoto(PhotoSize photo) throws TelegramApiException, IOException {
-        GetFile getFile = new GetFile();
-        getFile.setFileId(photo.getFileId());
-        org.telegram.telegrambots.meta.api.objects.File telegramFile = execute(getFile);
-        String fileUri = telegramFile.getFilePath();
-
-        URL fileUrl = new URL("https://api.telegram.org/file/bot" + BotConfig.botToken + "/" + fileUri);
-        String filePath = getFilePath(photo);
-
-        Path directory = Paths.get(filePath).getParent();
-        if (!Files.exists(directory)) {
-            Files.createDirectories(directory);
-        }
-
-        File downloadedFile = new File(filePath);
-
-        try (InputStream inputStream = fileUrl.openStream();
-             FileOutputStream outputStream = new FileOutputStream(downloadedFile)) {
-            byte[] buffer = new byte[1024];
-            int bytesRead;
-            while ((bytesRead = inputStream.read(buffer)) != -1) {
-                outputStream.write(buffer, 0, bytesRead);
-            }
-        }
-
-        return downloadedFile;
-    }
-
-    private String getFilePath(PhotoSize photo) {
-        return String.format("src/main/resources/photos/%s.jpg", photo.getFileId());
-    }
-
-
-    private void sendPdfToUser(String chatId, File pdfFile) {
-        if (pdfFile != null && pdfFile.exists()) {
-            SendDocument sendDocument = new SendDocument();
-            sendDocument.setChatId(chatId);
-            sendDocument.setDocument(new InputFile(pdfFile));
-            try {
-                execute(sendDocument);
-            } catch (TelegramApiException e) {
-                e.printStackTrace();
-            }
-
-        }
-    }
-
-    private void sendMessage(String chatId, String message) {
+    private void sendMessage(String chatId, String message, ReplyKeyboardMarkup replyKeyboardMarkup, InlineKeyboardMarkup inlineKeyboardMarkup) {
         try {
-            execute(new SendMessage(chatId, message));
+            SendMessage sendMessage = new SendMessage(chatId, message);
+            if (replyKeyboardMarkup != null) {
+                sendMessage.setReplyMarkup(replyKeyboardMarkup);
+            }
+            if (inlineKeyboardMarkup != null) {
+                sendMessage.setReplyMarkup(inlineKeyboardMarkup);
+            }
+            execute(sendMessage);
         } catch (TelegramApiException e) {
             throw new RuntimeException(e);
         }
     }
+
     public void sendMessageToAllUsers(Message message) {
         CompletableFuture.runAsync(() -> {
             List<String> allChatIds = userRepository.findUsersChatId();
