@@ -1,6 +1,7 @@
 package com.example;
 
 import com.example.domains.Role;
+import com.example.domains.Status;
 import com.example.domains.User;
 import com.example.repositories.UserRepository;
 import com.example.util.ExcelWriter;
@@ -35,7 +36,7 @@ import java.util.concurrent.CompletableFuture;
 
 @RequiredArgsConstructor
 public class MyTelegramBot extends TelegramLongPollingBot {
-    private final static Map<String, List<String>> chatIdToPhotoPath = new HashMap<>();
+    private final static Map<String, Status> userStatuses = new HashMap<>();
     private final UserRepository userRepository;
     private final MessageSource messageSource;
     private final UserService userService;
@@ -76,7 +77,7 @@ public class MyTelegramBot extends TelegramLongPollingBot {
                     }
                 }
                 case "admins" -> userRepository.findAllByRole(Role.ADMIN).forEach(user -> {
-                    sendMessage(chatId, "First Name: " + user.getFirstName() + "\nLast Name: " + user.getLastName() + "" +
+                    sendMessage(chatId, "First Name: " + user.getFirstName() + "\nLast Name: " + user.getLastName()+
                             "\nUsername: " + user.getUsername() + "\nChatId: " + user.getChatId(), null, null);
                 });
             }
@@ -95,6 +96,14 @@ public class MyTelegramBot extends TelegramLongPollingBot {
                     userRepository.save(user);
                 });
 
+            } else if (text.equals("🍽️ Menu")) {
+
+            } else if (text.equals("📞 Contact")&& userStatuses.containsKey(chatId)) {
+                sendMessage(chatId);
+
+            } else if (text.equals("🛒 Basket")) {
+
+            } else if (text.equals("📜 Order History")) {
             } else if (text.equals("/start")) {
                 org.telegram.telegrambots.meta.api.objects.User from1 = message.getFrom();
                 SendMessage sendMessage = new SendMessage(String.valueOf(chatId), messageSource.getMessage("choose_language_message", new Object[]{from1.getFirstName()}, Locale.forLanguageTag(from1.getLanguageCode())));
