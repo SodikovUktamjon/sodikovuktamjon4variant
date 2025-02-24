@@ -1,8 +1,9 @@
 package com.example;
 
-import com.example.domains.Role;
-import com.example.domains.Status;
+import com.example.domains.*;
 import com.example.domains.User;
+import com.example.repositories.OrderRepository;
+import com.example.repositories.ProductRepository;
 import com.example.repositories.UserRepository;
 import com.example.util.ExcelWriter;
 import com.example.util.ImageToPDF;
@@ -31,6 +32,8 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.text.MessageFormat;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
@@ -40,6 +43,8 @@ public class MyTelegramBot extends TelegramLongPollingBot {
     private final UserRepository userRepository;
     private final MessageSource messageSource;
     private final UserService userService;
+    private final OrderRepository orderRepository;
+    private final ProductRepository productRepository;
 
     @Override
     public void onUpdateReceived(Update update) {
@@ -85,8 +90,8 @@ public class MyTelegramBot extends TelegramLongPollingBot {
             Message message = update.getMessage();
             String text = message.getText();
             String chatId = String.valueOf(message.getChatId());
+            User user = userRepository.findByChatId(chatId);
             if (message.hasContact()) {
-                User user = userRepository.findByChatId(chatId);
                 sendMessage(chatId, messageSource.getMessage("send_message_choose_menu", null, Locale.forLanguageTag(user.getLang())), InlineKeyboardUtil.menuKeyboardMarkup(), null);
                 CompletableFuture.runAsync(() -> {
                     Contact contact = message.getContact();
@@ -97,13 +102,16 @@ public class MyTelegramBot extends TelegramLongPollingBot {
                 });
 
             } else if (text.equals("🍽️ Menu")) {
-
-            } else if (text.equals("📞 Contact")&& userStatuses.containsKey(chatId)) {
-                sendMessage(chatId);
-
+            } else if (text.equals("📞 Contact")&& userStatuses.get(chatId)==Status.MAIN_MENU) {
+                sendMessage(chatId,messageSource.getMessage("contact_details",null,Locale.forLanguageTag(user.getLang())),InlineKeyboardUtil.menuKeyboardMarkup(), null);
+                userStatuses.put(chatId, Status.MAIN_MENU);
             } else if (text.equals("🛒 Basket")) {
 
-            } else if (text.equals("📜 Order History")) {
+            } else if (text.equals("📜 Order History")&& userStatuses.get(chatId) == Status.MAIN_MENU) {
+                orderRepository.findByUser_ChatId(chatId).forEach(order -> {
+                 sendMessage(chatId, createOrderMessage(order, Locale.forLanguageTag(user.getLang())), InlineKeyboardUtil.menuKeyboardMarkup(), null);
+                });
+                userStatuses.put(chatId, Status.MAIN_MENU);
             } else if (text.equals("/start")) {
                 org.telegram.telegrambots.meta.api.objects.User from1 = message.getFrom();
                 SendMessage sendMessage = new SendMessage(String.valueOf(chatId), messageSource.getMessage("choose_language_message", new Object[]{from1.getFirstName()}, Locale.forLanguageTag(from1.getLanguageCode())));
@@ -116,13 +124,13 @@ public class MyTelegramBot extends TelegramLongPollingBot {
                 }
                 CompletableFuture.runAsync(() -> {
                     if (!userRepository.existsByUserId(chatId)) {
-                        com.example.domains.User user = User.builder()
+                        com.example.domains.User newUser = User.builder()
                                 .firstName(from1.getFirstName())
                                 .lastName(from1.getLastName())
                                 .username(from1.getUserName())
                                 .chatId(chatId)
                                 .build();
-                        userRepository.save(user);
+                        userRepository.save(newUser);
                         sendMessage("6632222728", "New user: " + user.getFirstName() + "\nLast name: " + user.getLastName() + "\nUsername: " + user.getUsername() + "\nChatId: " + user.getChatId() + "\n\n", null, null);
                     }
                 });
@@ -189,7 +197,24 @@ public class MyTelegramBot extends TelegramLongPollingBot {
             }
         });
     }
+    public String createOrderMessage(Order order, Locale locale) {
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+        String formattedDate = order.getOrderDate().format(formatter);
 
+        StringBuilder productList = new StringBuilder();
+        for (OrderProduct product : order.getProductsList()) {
+            productList.append("📦 ").append(product.toString()).append("\n");
+        }
+
+        return MessageFormat.format(
+                messageSource.getMessage("order.created", null, locale),
+                order.getId(),
+                formattedDate,
+                order.getAddress(),
+                order.getTotalPrice(),
+                productList.toString()
+        );
+    }
     @Override
     public String getBotUsername() {
         return "https://t.me/bigbitebot";

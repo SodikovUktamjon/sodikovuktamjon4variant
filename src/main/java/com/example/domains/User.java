@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.GenericGenerator;
 
+import java.util.List;
+
 @Entity
 @Table(name = "users")
 @NoArgsConstructor
@@ -37,6 +39,10 @@ public class User {
     @Column(name = "lang")
     @Builder.Default
     private String lang = "en";
+
+    @OneToMany(mappedBy = "from", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Order> orders;
+
 
 }
 

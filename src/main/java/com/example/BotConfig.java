@@ -1,5 +1,7 @@
 package com.example;
 
+import com.example.repositories.OrderRepository;
+import com.example.repositories.ProductRepository;
 import com.example.repositories.UserRepository;
 import org.springframework.context.MessageSource;
 import org.springframework.context.annotation.Bean;
@@ -25,8 +27,8 @@ public class BotConfig {
     }
 
     @Bean
-    public MyTelegramBot bot(UserRepository userRepository, MessageSource messageSource, UserService userService) throws TelegramApiException {
-        MyTelegramBot bot = new MyTelegramBot(userRepository, messageSource, userService);
+    public MyTelegramBot bot(UserRepository userRepository, MessageSource messageSource, UserService userService, OrderRepository orderRepository, ProductRepository productRepository) throws TelegramApiException {
+        MyTelegramBot bot = new MyTelegramBot(userRepository, messageSource, userService, orderRepository,productRepository);
         TelegramBotsApi botsApi;
         botsApi = new TelegramBotsApi(DefaultBotSession.class);
         botsApi.registerBot(bot);
