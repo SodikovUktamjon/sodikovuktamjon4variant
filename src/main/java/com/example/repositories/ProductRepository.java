@@ -11,4 +11,5 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 
 public interface ProductRepository extends JpaRepository<Product, String> {
+    Product findByProductData(String productData);
 }

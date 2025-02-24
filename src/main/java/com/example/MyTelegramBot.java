@@ -6,32 +6,21 @@ import com.example.repositories.OrderRepository;
 import com.example.repositories.ProductRepository;
 import com.example.repositories.UserRepository;
 import com.example.util.ExcelWriter;
-import com.example.util.ImageToPDF;
 import com.example.util.InlineKeyboardUtil;
-import com.example.util.JpegToDocxService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.MessageSource;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.ForwardMessage;
-import org.telegram.telegrambots.meta.api.methods.GetFile;
 import org.telegram.telegrambots.meta.api.methods.send.SendDocument;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.methods.send.SendPhoto;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
 import org.telegram.telegrambots.meta.api.objects.*;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.URL;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.text.MessageFormat;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -52,9 +41,12 @@ public class MyTelegramBot extends TelegramLongPollingBot {
             CallbackQuery callbackQuery = update.getCallbackQuery();
             String data = callbackQuery.getData();
             String chatId = String.valueOf(callbackQuery.getMessage().getChatId());
+            User user = userRepository.findByChatId(chatId);
             switch (data) {
+                case "hot_dog_mini", "hot_dog_classic", "hot_dog_big", "fries",
+                     "danar", "shawarma_classic", "haggy", "shawarma_big", "lavash_classic", "lavash_big" ->
+                        sendItemWithTextAndCounter(chatId, 1, productRepository.findByProductData(data), user.getLang());
                 case "ru", "en", "uz" -> {
-                    User user = userRepository.findByChatId(chatId);
                     user.setLang(data);
                     userRepository.save(user);
                     sendMessage(chatId, messageSource.getMessage("share_contact", null, Locale.forLanguageTag(data)), InlineKeyboardUtil.shareContact(), null);
@@ -81,9 +73,9 @@ public class MyTelegramBot extends TelegramLongPollingBot {
                         e.printStackTrace();
                     }
                 }
-                case "admins" -> userRepository.findAllByRole(Role.ADMIN).forEach(user -> {
-                    sendMessage(chatId, "First Name: " + user.getFirstName() + "\nLast Name: " + user.getLastName()+
-                            "\nUsername: " + user.getUsername() + "\nChatId: " + user.getChatId(), null, null);
+                case "admins" -> userRepository.findAllByRole(Role.ADMIN).forEach(user1 -> {
+                    sendMessage(chatId, "First Name: " + user1.getFirstName() + "\nLast Name: " + user1.getLastName() +
+                            "\nUsername: " + user1.getUsername() + "\nChatId: " + user1.getChatId(), null, null);
                 });
             }
         } else if (update.hasMessage()) {
@@ -101,16 +93,27 @@ public class MyTelegramBot extends TelegramLongPollingBot {
                     userRepository.save(user);
                 });
 
-            } else if (text.equals("🍽️ Menu")) {
-            } else if (text.equals("📞 Contact")&& userStatuses.get(chatId)==Status.MAIN_MENU) {
-                sendMessage(chatId,messageSource.getMessage("contact_details",null,Locale.forLanguageTag(user.getLang())),InlineKeyboardUtil.menuKeyboardMarkup(), null);
+            } else if (text.equals("🍽️ Menu") && (!userStatuses.containsKey(chatId) || userStatuses.get(chatId) == Status.MAIN_MENU)) {
+                deleteMessage(message, chatId);
+                sendMessage(chatId, messageSource.getMessage("menu.prompt", null, Locale.forLanguageTag(user.getLang())), null, InlineKeyboardUtil.orderMenuInlineKeyboardMarkup(user.getLang()));
+                userStatuses.put(chatId, Status.MENU);
+            } else if (text.equals("📞 Contact") && userStatuses.get(chatId) == Status.MAIN_MENU) {
+                deleteMessage(message, chatId);
+                sendMessage(chatId, messageSource.getMessage("contact.details", null, Locale.forLanguageTag(user.getLang())), InlineKeyboardUtil.menuKeyboardMarkup(), null);
                 userStatuses.put(chatId, Status.MAIN_MENU);
             } else if (text.equals("🛒 Basket")) {
 
-            } else if (text.equals("📜 Order History")&& userStatuses.get(chatId) == Status.MAIN_MENU) {
-                orderRepository.findByUser_ChatId(chatId).forEach(order -> {
-                 sendMessage(chatId, createOrderMessage(order, Locale.forLanguageTag(user.getLang())), InlineKeyboardUtil.menuKeyboardMarkup(), null);
-                });
+            } else if (text.equals("📜 Order History") && userStatuses.get(chatId) == Status.MAIN_MENU) {
+                deleteMessage(message, chatId);
+                List<Order> byUserChatId = orderRepository.findByUser_ChatId(chatId);
+                if (byUserChatId == null || byUserChatId.isEmpty()) {
+                    sendMessage(chatId, messageSource.getMessage("no.order", null, Locale.forLanguageTag(user.getLang())), InlineKeyboardUtil.menuKeyboardMarkup(), null);
+                }
+                if (byUserChatId != null) {
+                    byUserChatId.forEach(order -> {
+                        sendMessage(chatId, createOrderMessage(order, Locale.forLanguageTag(user.getLang())), InlineKeyboardUtil.menuKeyboardMarkup(), null);
+                    });
+                }
                 userStatuses.put(chatId, Status.MAIN_MENU);
             } else if (text.equals("/start")) {
                 org.telegram.telegrambots.meta.api.objects.User from1 = message.getFrom();
@@ -197,6 +200,7 @@ public class MyTelegramBot extends TelegramLongPollingBot {
             }
         });
     }
+
     public String createOrderMessage(Order order, Locale locale) {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
         String formattedDate = order.getOrderDate().format(formatter);
@@ -215,6 +219,43 @@ public class MyTelegramBot extends TelegramLongPollingBot {
                 productList.toString()
         );
     }
+
+    public void sendItemWithTextAndCounter(String chatId, int counterValue, Product product, String language) {
+        InlineKeyboardMarkup inlineKeyboardMarkup = InlineKeyboardUtil.createCounterInlineKeyboard(counterValue, product.getProductData());
+        SendPhoto sendMessage = new SendPhoto();
+        sendMessage.setChatId(chatId);
+        sendMessage.setPhoto(new InputFile(new File(product.getImagePath())));
+        try {
+
+            switch (language) {
+                case "en":
+                    sendMessage.setCaption("*" + product.getName() + "*\n\n" +
+                            "🍴 *Description:*\n" + product.getDescription() + "\n\n" +
+                            "💰 *Price:* " + product.getPrice() + " UZS\n\n" +
+                            "➡️ *Order now and enjoy your meal!*");
+                    break;
+                case "uz":
+                    sendMessage.setCaption("*" + product.getNameUz() + "*\n\n" +
+                            "🍴 *Tavsif:*\n" + product.getDescriptionUz() + "\n\n" +
+                            "💰 *Narx:* " + product.getPrice() + " UZS\n\n" +
+                            "➡️ *Buyurtma bering va taomingizdan rohatlaning!*");
+                    break;
+                case "ru":
+                    sendMessage.setCaption("*" + product.getNameRu() + "*\n\n" +
+                            "🍴 *Описание:*\n" + product.getDescriptionRu() + "\n\n" +
+                            "💰 *Цена:* " + product.getPrice() + " UZS\n\n" +
+                            "➡️ *Закажите сейчас и наслаждайтесь своей едой!*");
+                    break;
+            }
+
+            sendMessage.setReplyMarkup(inlineKeyboardMarkup);
+
+            execute(sendMessage);
+        } catch (TelegramApiException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     @Override
     public String getBotUsername() {
         return "https://t.me/bigbitebot";

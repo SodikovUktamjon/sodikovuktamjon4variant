@@ -27,4 +27,16 @@ public class Product {
     private String description;
     @Column(name = "price",nullable = false)
     private long price;
+    @Column(name="product_data", nullable = false)
+    private String productData;
+    @Column(name="image_path")
+    private String imagePath;
+    @Column(name = "name_uz",nullable = false)
+    private String nameUz;
+    @Column(name = "description_uz", nullable = false)
+    private String descriptionUz;
+    @Column(name="name_ru", nullable = false)
+    private String nameRu;
+    @Column(name="description_ru", nullable = false)
+    private String descriptionRu;
 }
