@@ -24,7 +24,7 @@ public class User {
     private String lastName;
     @Column(name = "username", unique = true)
     private String username;
-    @Column(name = "user_id", unique = true)
+    @Column(name = "chat_id", unique = true)
     private String chatId;
     @Column(name = "phone_number", unique = true)
     private String phoneNumber;
@@ -40,7 +40,7 @@ public class User {
     @Builder.Default
     private String lang = "en";
 
-    @OneToMany(mappedBy = "from", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Order> orders;
 
 

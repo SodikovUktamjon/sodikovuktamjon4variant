@@ -29,12 +29,13 @@
                 joinColumns = @JoinColumn(name = "order_id")
         )
         private List<OrderProduct> productsList;
-        @CreationTimestamp
         @Column(updatable = false, name = "order_date")
-        private LocalDateTime orderDate;
+        private LocalDateTime orderDate=LocalDateTime.now();
         @Column(name = "address")
         private String address;
         @Column(name = "total_price", nullable = false)
         private long totalPrice;
+        @Transient
+        private String orderMessageId;
     }
 

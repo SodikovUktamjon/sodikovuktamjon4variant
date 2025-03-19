@@ -21,6 +21,7 @@ public class InlineKeyboardUtil {
     public static InlineKeyboardMarkup getInlineUserLanguages(){
         InlineKeyboardButton inlineKeyboardButton=getButton("Русский\uD83C\uDDF7\uD83C\uDDFA","ru");
         InlineKeyboardButton inlineKeyboardButton1=getButton("Uzbek\uD83C\uDDFA\uD83C\uDDFF","uz");
+        InlineKeyboardButton inlineKeyboardButton2=getButton("English\uD83C\uDDFA\uD83C\uDDFF","en");
         return new InlineKeyboardMarkup(Collections.singletonList(List.of(inlineKeyboardButton,inlineKeyboardButton1)));
     }
     public static InlineKeyboardMarkup getAdminKeyboardMarkup(){
@@ -79,6 +80,7 @@ public static ReplyKeyboardMarkup shareContact(){
             String shawarmaClassic = getItemName(language, "Шаурма классическая", "Shawarma Classic", "Shawarma Classic");
             String shawarmaBig = getItemName(language, "Шаурма биг", "Shawarma Big", "Shawarma Big");
             String fries = getItemName(language, "Фри", "Fries", "Fries");
+            String beverages= getItemName(language, "Напитки", "Beverages", "Ichimliklar");
 
             // Create inline buttons for menu
             InlineKeyboardButton button1 = new InlineKeyboardButton("🌭 " + hotDogMini + " - 10,000");
@@ -160,26 +162,22 @@ public static ReplyKeyboardMarkup shareContact(){
     }
 
     public static InlineKeyboardMarkup createCounterInlineKeyboard(int counterValue, String itemName) {
-        InlineKeyboardButton minusButton = createButton("➖", "counter_minus_" + counterValue);
+        InlineKeyboardButton minusButton = createButton("-", "counter_minus_"+ itemName+"_"+counterValue);
         InlineKeyboardButton counterButton = createButton(  ""+counterValue, "counter_" + counterValue); // Display counter value
-        InlineKeyboardButton plusButton = createButton("➕", "counter_plus_" + counterValue);
-        // Create a row for the counter and action buttons
+        InlineKeyboardButton plusButton = createButton("+", "counter_plus_"+ itemName+"_"+counterValue);
         List<InlineKeyboardButton> row1 = new ArrayList<>();
         row1.add(minusButton);
         row1.add(counterButton);
         row1.add(plusButton);
 
-        // Create a row for the item (optional)
-        InlineKeyboardButton itemButton = createButton("✅ Confirm", "item_" + itemName);
+        InlineKeyboardButton itemButton = createButton("✅ Confirm", "countItem_" + itemName+"_"+counterValue);
         List<InlineKeyboardButton> row2 = new ArrayList<>();
         row2.add(itemButton);
 
-        // Add rows to the list
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
         rows.add(row1);
         rows.add(row2);
 
-        // Create inline keyboard markup
         InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
         inlineKeyboardMarkup.setKeyboard(rows);
 
